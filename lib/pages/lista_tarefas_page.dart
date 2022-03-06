@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lista_tarefas/widgets/todo_list_item.dart';
 
+import '../models/todo.dart';
+
 class ListaTarefaPage extends StatefulWidget {
   ListaTarefaPage({Key? key}) : super(key: key);
 
@@ -10,8 +12,10 @@ class ListaTarefaPage extends StatefulWidget {
 
 class _ListaTarefaPageState extends State<ListaTarefaPage> {
   TextEditingController todoController = TextEditingController();
+  List<Todo> todos = [];
 
-  List<String> todos = [];
+  Todo? deletedTodo;
+  int? deletedTodoPos;
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +43,12 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
                       width: 8,
                     ),
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed:  () {
                         setState(() {
-                          todos.add(todoController.text);
+                          Todo newTodo = Todo(
+                              title: todoController.text,
+                              dateTime: DateTime.now());
+                          todos.add(newTodo);
                         });
                         todoController.clear();
                       },
@@ -61,7 +68,7 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
                   child: ListView(
                     shrinkWrap: true,
                     children: [
-                      for (String todo in todos) TodoListItem(todo),
+                      for (Todo todo in todos) TodoListItem(todo, onDelete),
                     ],
                   ),
                 ),
@@ -75,7 +82,7 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
                       width: 8,
                     ),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: todos.isEmpty ? null : showDeletedTodosConfimationDialog,
                       style: ElevatedButton.styleFrom(
                         primary: Colors.tealAccent,
                         padding: EdgeInsets.all(15),
@@ -93,6 +100,63 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void onDelete(Todo todo) {
+    deletedTodo = todo;
+    deletedTodoPos = todos.indexOf(todo);
+
+    setState(() {
+      todos.remove(todo);
+    });
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        "Tarefa ${todo.title} foi removida com sucesso",
+        style: TextStyle(color: Colors.black),
+      ),
+      backgroundColor: Colors.white,
+      duration: Duration(seconds: 4),
+      action: SnackBarAction(
+        label: 'Desfazer',
+        textColor: Colors.blueAccent,
+        onPressed: () {
+          setState(() {
+            todos.insert(deletedTodoPos!, deletedTodo!);
+          });
+        },
+      ),
+    ));
+  }
+
+  void showDeletedTodosConfimationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Deletar Tudo?"),
+        content: Text("Voce Tem Certeza que Deseja Apagar Todas as Tarefas?"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text("Cancelar"),
+            style: TextButton.styleFrom(primary: Colors.blueAccent),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                todos.clear();
+              });
+              Navigator.of(context).pop();
+            },
+            child: Text("Limpar Tudo"),
+            style: TextButton.styleFrom(primary: Colors.red),
+          )
+        ],
       ),
     );
   }
