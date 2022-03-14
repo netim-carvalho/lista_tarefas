@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lista_tarefas/repositories/todo_repository.dart';
 import 'package:lista_tarefas/widgets/todo_list_item.dart';
 
 import '../models/todo.dart';
@@ -11,11 +12,25 @@ class ListaTarefaPage extends StatefulWidget {
 }
 
 class _ListaTarefaPageState extends State<ListaTarefaPage> {
-  TextEditingController todoController = TextEditingController();
+  final TextEditingController todoController = TextEditingController();
+  final TodoRepository todoRepository = TodoRepository();
+
   List<Todo> todos = [];
 
   Todo? deletedTodo;
   int? deletedTodoPos;
+
+  bool empty = true;
+
+  @override
+  void initState() {
+    super.initState();
+    todoRepository.getTodoList().then((value) {
+      setState(() {
+        todos = value;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +38,7 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
       child: Scaffold(
         body: Center(
           child: Padding(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -32,6 +47,7 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
                     Expanded(
                       child: TextField(
                         controller: todoController,
+                        onChanged: isChanged,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
                           labelText: 'Adicione Uma Tarefa',
@@ -43,15 +59,21 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
                       width: 8,
                     ),
                     ElevatedButton(
-                      onPressed:  () {
-                        setState(() {
-                          Todo newTodo = Todo(
-                              title: todoController.text,
-                              dateTime: DateTime.now());
-                          todos.add(newTodo);
-                        });
-                        todoController.clear();
-                      },
+                      onPressed: empty
+                          ? null
+                          : () {
+                              if (!todoController.text.isEmpty) {
+                                setState(() {
+                                  Todo newTodo = Todo(
+                                      title: todoController.text,
+                                      dateTime: DateTime.now());
+                                  todos.add(newTodo);
+                                  empty = true;
+                                });
+                                todoController.clear();
+                                todoRepository.saveTodoList(todos);
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                         primary: Colors.tealAccent,
                         padding: EdgeInsets.all(15),
@@ -82,7 +104,9 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
                       width: 8,
                     ),
                     ElevatedButton(
-                      onPressed: todos.isEmpty ? null : showDeletedTodosConfimationDialog,
+                      onPressed: todos.isEmpty
+                          ? null
+                          : showDeletedTodosConfimationDialog,
                       style: ElevatedButton.styleFrom(
                         primary: Colors.tealAccent,
                         padding: EdgeInsets.all(15),
@@ -111,6 +135,7 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
     setState(() {
       todos.remove(todo);
     });
+    todoRepository.saveTodoList(todos);
 
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -127,6 +152,7 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
           setState(() {
             todos.insert(deletedTodoPos!, deletedTodo!);
           });
+          todoRepository.saveTodoList(todos);
         },
       ),
     ));
@@ -151,13 +177,26 @@ class _ListaTarefaPageState extends State<ListaTarefaPage> {
               setState(() {
                 todos.clear();
               });
+              todoRepository.saveTodoList(todos);
               Navigator.of(context).pop();
             },
             child: Text("Limpar Tudo"),
             style: TextButton.styleFrom(primary: Colors.red),
-          )
+          ),
         ],
       ),
     );
+  }
+
+  void isChanged(String value) {
+    if (value.isNotEmpty) {
+      setState(() {
+        empty = false;
+      });
+    } else {
+      setState(() {
+        empty = true;
+      });
+    }
   }
 }
